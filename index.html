@@ -71,6 +71,7 @@ h1,h2,h3{text-wrap:balance}
 main{width:100%;max-width:1120px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-bottom:calc(150px + env(safe-area-inset-bottom,0px))}
 .topbar{position:sticky;top:0;z-index:5;background:var(--bg);padding-top:calc(env(safe-area-inset-top,0px) + 14px);padding-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .topbar h1{font:600 23px/1.2 var(--font-num);margin:0;letter-spacing:-.01em}
+.wordmark{margin:0 0 3px;font:600 11.5px/1.2 var(--font-num);letter-spacing:.24em;text-transform:uppercase;color:var(--muted)}
 .month{display:flex;align-items:center;gap:2px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px}
 .month button{border:0;background:none;height:34px;min-width:34px;border-radius:999px;display:grid;place-items:center;color:var(--ink-2)}
 .month button:hover{background:var(--surface-2)}
@@ -262,7 +263,10 @@ main{width:100%;max-width:1120px;margin:0 auto;padding-left:max(16px,env(safe-ar
   </aside>
   <main>
     <header class="topbar">
-      <h1 id="page-title">Overview</h1>
+      <div class="titles">
+        <p class="wordmark" id="wordmark">Jiksan Gaming</p>
+        <h1 id="page-title">Overview</h1>
+      </div>
       <div class="month" id="monthbar">
         <button type="button" data-act="prev" aria-label="Previous month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
         <button type="button" class="month-label" data-act="this-month" id="month-label" title="Go to this month"></button>
@@ -888,6 +892,7 @@ function render() {
   applyTheme();
   $$('[data-nav]').forEach(a => a.dataset.nav === route ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'));
   $('#page-title').textContent = TITLES[route];
+  $('#wordmark').hidden = route !== 'home';
   document.title = route === 'home' ? 'Pocket Ledger' : `${TITLES[route]} · Pocket Ledger`;
   $('#monthbar').hidden = !['home', 'activity', 'budgets'].includes(route);
   $('#month-label').textContent = monthLabel(ui.month);
