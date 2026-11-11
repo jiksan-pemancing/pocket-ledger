@@ -1,6 +1,6 @@
 /* Pocket Ledger service worker: keeps the app working offline.
    Bump CACHE when you change index.html so phones pick up the new version. */
-const CACHE = 'pocket-ledger-v2';
+const CACHE = 'pocket-ledger-v3';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png'];
 
 self.addEventListener('install', e => {

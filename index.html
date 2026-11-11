@@ -251,6 +251,26 @@ main{width:100%;max-width:1120px;margin:0 auto;padding-left:max(16px,env(safe-ar
 .toast{position:fixed;left:50%;bottom:calc(144px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14px;z-index:60;box-shadow:var(--shadow);max-width:calc(100% - 32px);text-align:center}
 @media (min-width:900px){.toast{bottom:96px}}
 
+/* lock screen */
+.lock{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;align-items:center;justify-content:center;overflow:auto;padding-top:calc(env(safe-area-inset-top,0px) + 24px);padding-bottom:calc(env(safe-area-inset-bottom,0px) + 24px);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.lock-inner{width:100%;max-width:320px;display:grid;justify-items:center;text-align:center}
+.lock-icon{border-radius:14px;margin:12px 0 14px}
+.lock h2{font:600 20px var(--font-num);margin:0}
+.dots{display:flex;gap:14px;margin:20px 0 8px;min-height:14px}
+.dots i{width:14px;height:14px;border-radius:50%;border:2px solid var(--ink-2)}
+.dots i.on{background:var(--ink);border-color:var(--ink)}
+.dots.shake{animation:shake .35s}
+@keyframes shake{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+.lock-msg{min-height:20px;margin:0 0 12px;font-size:13.5px;color:var(--crit)}
+.keypad{display:grid;grid-template-columns:repeat(3,72px);gap:14px 24px;justify-content:center}
+.key{width:72px;height:72px;border-radius:50%;border:1px solid var(--line);background:var(--surface);font:500 26px var(--font-num);color:var(--ink);display:grid;place-items:center}
+.key:active{background:var(--accent-soft)}
+.key.text{border:0;background:none;font:600 13.5px var(--font-ui);color:var(--ink-2)}
+.key svg{width:24px;height:24px}
+.key:disabled{opacity:.35;cursor:default}
+.lock-forgot{display:grid;gap:12px;justify-items:center}
+.lock-forgot p{margin:0;color:var(--ink-2);font-size:14px}
+
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -281,6 +301,37 @@ main{width:100%;max-width:1120px;margin:0 auto;padding-left:max(16px,env(safe-ar
 <div class="scrim" id="scrim" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title"></div></div>
 <div class="toast" id="toast" role="status" hidden></div>
 <input type="file" id="import-file" accept="application/json,.json" hidden>
+<div class="lock" id="lock" hidden role="dialog" aria-modal="true" aria-labelledby="lock-title">
+  <div class="lock-inner">
+    <p class="wordmark">Jiksan Gaming</p>
+    <img class="lock-icon" src="icons/icon-192.png" width="56" height="56" alt="">
+    <div id="lock-pad" style="display:grid;justify-items:center">
+      <h2 id="lock-title">Enter your PIN</h2>
+      <div class="dots" id="lock-dots" aria-hidden="true"></div>
+      <p class="lock-msg" id="lock-msg" role="alert"></p>
+      <div class="keypad">
+        <button type="button" class="key" data-act="key" data-k="1">1</button>
+        <button type="button" class="key" data-act="key" data-k="2">2</button>
+        <button type="button" class="key" data-act="key" data-k="3">3</button>
+        <button type="button" class="key" data-act="key" data-k="4">4</button>
+        <button type="button" class="key" data-act="key" data-k="5">5</button>
+        <button type="button" class="key" data-act="key" data-k="6">6</button>
+        <button type="button" class="key" data-act="key" data-k="7">7</button>
+        <button type="button" class="key" data-act="key" data-k="8">8</button>
+        <button type="button" class="key" data-act="key" data-k="9">9</button>
+        <button type="button" class="key text" data-act="lock-forgot">Forgot?</button>
+        <button type="button" class="key" data-act="key" data-k="0">0</button>
+        <button type="button" class="key text" data-act="key" data-k="del" aria-label="Delete last digit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 5H9l-6 7 6 7h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1z"/><path d="m17 9-6 6M11 9l6 6"/></svg></button>
+      </div>
+    </div>
+    <div class="lock-forgot" id="lock-forgot" hidden>
+      <h2>Forgot your PIN?</h2>
+      <p>A PIN can't be recovered. To use the app again, erase the data on this device, then restore a backup if you have one.</p>
+      <button type="button" class="btn danger" data-act="armed" data-run="forgot-erase">Erase data and remove PIN</button>
+      <button type="button" class="btn" data-act="lock-back">Back to PIN</button>
+    </div>
+  </div>
+</div>
 
 <script>
 (() => {
@@ -791,6 +842,22 @@ function viewMore() {
       </div>
     </section>
     <section class="panel">
+      <div class="panel-h"><h2>App lock</h2>${hasPin() ? '<span class="status good" style="--st:var(--good)">On</span>' : ''}</div>
+      ${hasPin() ? `
+        <p class="hint" style="margin-bottom:12px">The app asks for your ${state.settings.pin.len}-digit PIN every time it opens.</p>
+        <label class="field"><span>Also lock after leaving the app for</span>
+          <select class="input" id="lock-after">${[[0, 'No wait, lock right away'], [60, '1 minute'], [300, '5 minutes'], [900, '15 minutes']].map(([v, l]) => `<option value="${v}" ${(state.settings.lockAfter ?? 60) === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+        </label>
+        <div class="btn-row">
+          <button type="button" class="btn sm" data-act="lock-now">Lock now</button>
+          <button type="button" class="btn sm" data-act="pin-change">Change PIN</button>
+          <button type="button" class="btn sm danger" data-act="pin-off">Turn off PIN</button>
+        </div>` : `
+        <p class="hint" style="margin-bottom:12px">Ask for a 4 to 6 digit PIN every time the app opens, so nobody else can look at your finances.</p>
+        <button type="button" class="btn sm primary" data-act="pin-set">Set a PIN</button>`}
+      <p class="hint" style="margin-top:12px">The PIN keeps people out of the app. It can't be recovered if you forget it.</p>
+    </section>
+    <section class="panel">
       <div class="panel-h"><h2>Your data</h2></div>
       <p class="hint" style="margin-bottom:12px">Everything is stored only on this device, in this browser. Nothing is uploaded. Export a backup now and then, and before clearing your browser data.</p>
       <div class="btn-row">
@@ -888,6 +955,7 @@ function buildNav() {
   $('#tabbar').innerHTML = html;
 }
 function render() {
+  if (!started) return; /* nothing is drawn until the PIN is entered */
   const route = routeFromHash();
   applyTheme();
   $$('[data-nav]').forEach(a => a.dataset.nav === route ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'));
@@ -1157,7 +1225,8 @@ function download(name, text, type) {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 function exportJSON() {
-  download(`pocket-ledger-backup-${todayISO()}.json`, JSON.stringify({...state, exportedAt:new Date().toISOString()}, null, 1), 'application/json');
+  /* the PIN hash stays out of backup files */
+  download(`pocket-ledger-backup-${todayISO()}.json`, JSON.stringify({...state, settings:{...state.settings, pin:undefined}, exportedAt:new Date().toISOString()}, null, 1), 'application/json');
   toast('Backup saved to your downloads');
 }
 function exportCSV() {
@@ -1177,11 +1246,103 @@ $('#import-file').addEventListener('change', e => {
     if (!data || data.version !== 1 || !Array.isArray(data.transactions)) { toast('That file is not a Pocket Ledger backup.'); return; }
     const when = data.exportedAt ? new Date(data.exportedAt).toLocaleDateString(undefined, {day:'numeric', month:'short', year:'numeric'}) : 'an unknown date';
     openSheet('Restore backup', `<p>This replaces everything on this device with the backup from <b>${esc(when)}</b>: ${data.transactions.length} entries, ${(data.accounts || []).length} accounts, ${(data.goals || []).length} goals.</p><p class="hint">Export a backup of your current data first if you might need it.</p>`, () => {
-      state = normalize(data); fmtCache = {}; save(); toast('Backup restored');
+      state = withLockPrefs(normalize(data)); fmtCache = {}; save(); toast('Backup restored');
     }, {submitLabel:'Replace my data'});
   };
   reader.readAsText(file);
 });
+
+/* ================= PIN lock =================
+   The PIN is stored only as a salted PBKDF2 hash. It keeps people out of the app's
+   screens; it does not encrypt the data in browser storage. */
+const LOCK_KEY = 'pocket-ledger:lock';
+const PIN_ITER = 150000;
+let locked = false, started = false, pinEntry = '', pinBusy = false, hiddenAt = 0, lockTimer = null;
+const hasPin = () => !!state.settings.pin?.hash;
+const b64e = u8 => btoa(String.fromCharCode(...u8));
+const b64d = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+async function hashPin(pin, saltB64, iter = PIN_ITER) {
+  const salt = saltB64 ? b64d(saltB64) : crypto.getRandomValues(new Uint8Array(16));
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({name:'PBKDF2', hash:'SHA-256', salt, iterations:iter}, key, 256);
+  return {salt:b64e(salt), hash:b64e(new Uint8Array(bits)), iter, len:pin.length};
+}
+async function checkPin(pin) {
+  const p = state.settings.pin;
+  if (!p) return true;
+  return (await hashPin(pin, p.salt, p.iter)).hash === p.hash;
+}
+function lockInfo() { try { return JSON.parse(localStorage.getItem(LOCK_KEY)) || {fails:0, until:0}; } catch { return {fails:0, until:0}; } }
+function setLockInfo(v) { try { localStorage.setItem(LOCK_KEY, JSON.stringify(v)); } catch {} }
+/* Keeps the lock settings when the rest of the data is replaced */
+function withLockPrefs(s) { s.settings.pin = state.settings.pin; s.settings.lockAfter = state.settings.lockAfter; return s; }
+
+function lock() {
+  if (!hasPin()) return;
+  locked = true; pinEntry = '';
+  $('#lock').hidden = false; $('#lock-pad').hidden = false; $('#lock-forgot').hidden = true;
+  $('.app').inert = true; $('#scrim').inert = true;
+  document.body.style.overflow = 'hidden';
+  renderLock();
+}
+function unlock() {
+  locked = false; pinEntry = '';
+  $('#lock').hidden = true;
+  $('.app').inert = false; $('#scrim').inert = false;
+  document.body.style.overflow = $('#scrim').hidden ? '' : 'hidden';
+  clearInterval(lockTimer);
+  if (!started) start(); else if (processRecurring()) render();
+}
+function renderLock(msg) {
+  const len = state.settings.pin?.len || 4;
+  $('#lock-dots').innerHTML = Array.from({length:len}, (_, i) => `<i class="${i < pinEntry.length ? 'on' : ''}"></i>`).join('');
+  const {until} = lockInfo();
+  const wait = Math.ceil((until - Date.now()) / 1000);
+  $$('#lock-pad [data-act="key"]').forEach(b => { b.disabled = wait > 0; });
+  clearInterval(lockTimer);
+  if (wait > 0) {
+    $('#lock-msg').textContent = `Too many wrong tries. Try again in ${Math.floor(wait / 60)}:${pad(wait % 60)}.`;
+    lockTimer = setInterval(() => renderLock(), 1000);
+  } else $('#lock-msg').textContent = msg || '';
+}
+async function pressKey(k) {
+  if (pinBusy || lockInfo().until > Date.now()) return;
+  const len = state.settings.pin?.len || 4;
+  if (k === 'del') { pinEntry = pinEntry.slice(0, -1); renderLock(); return; }
+  if (pinEntry.length >= len) return;
+  pinEntry += k; renderLock();
+  if (pinEntry.length < len) return;
+  pinBusy = true;
+  const ok = await checkPin(pinEntry);
+  pinBusy = false;
+  if (ok) { setLockInfo({fails:0, until:0}); unlock(); return; }
+  const info = lockInfo(); info.fails += 1;
+  if (info.fails >= 5) info.until = Date.now() + Math.min(15 * 60, 30 * 2 ** (info.fails - 5)) * 1000;
+  setLockInfo(info);
+  pinEntry = '';
+  const dots = $('#lock-dots'); dots.classList.remove('shake'); void dots.offsetWidth; dots.classList.add('shake');
+  renderLock(info.fails < 5 ? `Wrong PIN. ${5 - info.fails} ${5 - info.fails === 1 ? 'try' : 'tries'} left before a short wait.` : 'Wrong PIN.');
+}
+
+const pinInput = (name, label, autofocus) => `<label class="field"><span>${label}</span><input class="input num" name="${name}" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" ${autofocus ? 'autofocus' : ''}></label>`;
+function openPinSheet(mode) {
+  if (!window.crypto?.subtle) { toast('PIN lock needs the app opened over https, like the installed version.'); return; }
+  const titles = {set:'Set a PIN', change:'Change PIN', off:'Turn off PIN'};
+  const body = (mode !== 'set' ? pinInput('current', 'Current PIN', true) : '')
+    + (mode !== 'off' ? pinInput('pin', 'New PIN (4 to 6 digits)', mode === 'set') + pinInput('pin2', 'Repeat new PIN', false) : '')
+    + (mode === 'set' ? '<p class="hint">Remember it or write it down somewhere safe. If you forget it, the only way back in is to erase the data on this device.</p>' : '');
+  openSheet(titles[mode], body, async fd => {
+    if (mode !== 'set' && !(await checkPin(String(fd.get('current') || '')))) return 'The current PIN is wrong.';
+    if (mode === 'off') { delete state.settings.pin; save(); toast('PIN turned off'); return; }
+    const pin = String(fd.get('pin') || '');
+    if (!/^\d{4,6}$/.test(pin)) return 'Use 4 to 6 digits.';
+    if (pin !== String(fd.get('pin2') || '')) return 'The two PINs do not match.';
+    state.settings.pin = await hashPin(pin);
+    if (state.settings.lockAfter == null) state.settings.lockAfter = 60;
+    setLockInfo({fails:0, until:0});
+    save(); toast(mode === 'set' ? 'PIN set. The app asks for it each time it opens.' : 'PIN changed');
+  }, {submitLabel: mode === 'off' ? 'Turn off PIN' : 'Save PIN'});
+}
 
 /* ================= events ================= */
 let toastTimer;
@@ -1196,9 +1357,10 @@ function armed(btn, run) {
   setTimeout(() => { if (btn.isConnected && btn.dataset.armed) { delete btn.dataset.armed; btn.classList.remove('armed'); btn.textContent = btn.dataset.label; } }, 4000);
 }
 const RUN = {
-  'start-fresh': () => { state = freshState(cur(), state.settings.theme); save(); render(); toast('Examples cleared. Start by setting your account balances.'); },
-  'erase-all': () => { state = freshState(cur(), state.settings.theme); save(); render(); toast('All data erased'); },
-  'load-sample': () => { state = sampleState(cur(), state.settings.theme); save(); location.hash = 'home'; render(); toast('Example data loaded'); },
+  'start-fresh': () => { state = withLockPrefs(freshState(cur(), state.settings.theme)); save(); render(); toast('Examples cleared. Start by setting your account balances.'); },
+  'erase-all': () => { state = withLockPrefs(freshState(cur(), state.settings.theme)); save(); render(); toast('All data erased'); },
+  'load-sample': () => { state = withLockPrefs(sampleState(cur(), state.settings.theme)); save(); location.hash = 'home'; render(); toast('Example data loaded'); },
+  'forgot-erase': () => { state = freshState(cur(), state.settings.theme); save(); setLockInfo({fails:0, until:0}); unlock(); render(); toast('Data erased and PIN removed. Restore a backup from More if you have one.'); },
   'sheet-delete': () => { if (sheetDelete && sheetDelete() !== false) { closeSheet(); render(); } }
 };
 const goTo = route => { if (location.hash === '#' + route) render(); else location.hash = route; };
@@ -1233,13 +1395,24 @@ document.addEventListener('click', e => {
     case 'import': $('#import-file').click(); break;
     case 'install': if (installEvt) { installEvt.prompt(); installEvt.userChoice.finally(() => { installEvt = null; render(); }); } break;
     case 'close-sheet': closeSheet(); break;
+    case 'key': pressKey(el.dataset.k); break;
+    case 'lock-forgot': $('#lock-pad').hidden = true; $('#lock-forgot').hidden = false; break;
+    case 'lock-back': $('#lock-pad').hidden = false; $('#lock-forgot').hidden = true; renderLock(); break;
+    case 'lock-now': lock(); break;
+    case 'pin-set': openPinSheet('set'); break;
+    case 'pin-change': openPinSheet('change'); break;
+    case 'pin-off': openPinSheet('off'); break;
     case 'armed': armed(el, RUN[el.dataset.run]); break;
   }
 });
-document.addEventListener('submit', e => {
+document.addEventListener('submit', async e => {
   if (e.target.id !== 'sheet-form') return;
   e.preventDefault();
-  const res = sheetSubmit ? sheetSubmit(new FormData(e.target)) : undefined;
+  const btn = e.target.querySelector('[type="submit"]');
+  btn.disabled = true;
+  let res;
+  try { res = sheetSubmit ? await sheetSubmit(new FormData(e.target)) : undefined; }
+  finally { btn.disabled = false; }
   if (typeof res === 'string') { $('#sheet-err').textContent = res; return; }
   closeSheet(); render();
 });
@@ -1248,21 +1421,35 @@ document.addEventListener('input', e => {
 });
 document.addEventListener('change', e => {
   if (e.target.id === 'catf') { ui.cat = e.target.value; $('#act-list').innerHTML = activityList(); }
+  if (e.target.id === 'lock-after') { state.settings.lockAfter = Number(e.target.value); save(); toast('Saved'); }
   if (e.target.id === 'cur') { state.settings.currency = e.target.value; fmtCache = {}; save(); render(); toast(`Currency set to ${e.target.value}. Amounts were not converted.`); }
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#scrim').hidden) closeSheet(); });
+document.addEventListener('keydown', e => {
+  if (locked) {
+    if (/^[0-9]$/.test(e.key)) { e.preventDefault(); pressKey(e.key); }
+    else if (e.key === 'Backspace') { e.preventDefault(); pressKey('del'); }
+    return;
+  }
+  if (e.key === 'Escape' && !$('#scrim').hidden) closeSheet();
+});
 window.addEventListener('hashchange', () => { closeSheet(); render(); window.scrollTo(0, 0); });
 let resizeTimer;
 window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(drawBarChart, 120); });
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', applyTheme);
-document.addEventListener('visibilitychange', () => { if (!document.hidden && processRecurring()) render(); });
+document.addEventListener('visibilitychange', () => {
+  const after = state.settings.lockAfter ?? 60;
+  if (document.hidden) { hiddenAt = Date.now(); if (hasPin() && after === 0) lock(); return; }
+  if (hasPin() && !locked && hiddenAt && Date.now() - hiddenAt >= after * 1000) { lock(); return; }
+  if (!locked && processRecurring()) render();
+});
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; if (['home', 'more'].includes(routeFromHash())) render(); });
 window.addEventListener('appinstalled', () => { installEvt = null; render(); toast('Installed. Open it from your home screen.'); });
 
 /* ================= start ================= */
+function start() { started = true; processRecurring(); render(); }
 buildNav();
-processRecurring();
-render();
+applyTheme();
+if (hasPin()) lock(); else start();
 if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
 if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
